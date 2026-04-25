@@ -1,0 +1,12 @@
+# Données locales (trop lourdes pour Git)
+data/
+airflow/logs/
+airflow/plugins/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Environnement
+.env
