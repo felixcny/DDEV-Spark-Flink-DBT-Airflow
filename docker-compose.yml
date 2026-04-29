@@ -1,45 +1,51 @@
 version: '3.8'
 
 services:
+  # Base de données pour Airflow et le Data Warehouse (DWH)
   postgres:
     image: postgres:13
     environment:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
-      - POSTGRES_MULTIPLE_DATABASES=airflow,taxi_db 
+      - POSTGRES_DB=airflow
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # Data Lake (MinIO) compatible avec le protocole S3
   minio:
     image: minio/minio
     ports:
       - "9000:9000" # API
-      - "9001:9001" # Console UI
+      - "9001:9001" # Interface Console
     environment:
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=password
     command: server /data --console-address ":9001"
 
+  # Orchestrateur (Airflow) utilisant notre Dockerfile personnalisé
   airflow-webserver:
-    image: apache/airflow:2.7.0
+    build: .
     depends_on:
       - postgres
+      - minio
     environment:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./scripts:/opt/airflow/scripts
-      - ./dbt_project:/opt/airflow/dbt_project 
+      - ./dbt_project:/opt/airflow/dbt_project
     ports:
       - "8080:8080"
     command: standalone
 
+  # Spark Master
   spark-master:
-    image: bitnami/spark:3.4 
+    image: bitnami/spark:3.4
     environment:
       - SPARK_MODE=master
     ports:
@@ -48,6 +54,7 @@ services:
     volumes:
       - ./scripts:/opt/bitnami/spark/scripts
 
+  # Spark Worker
   spark-worker:
     image: bitnami/spark:3.4
     depends_on:

@@ -1,4 +1,7 @@
+apache-airflow-providers-apache-spark
 apache-airflow-providers-postgres
+apache-airflow-providers-amazon
+pyspark==3.4.0
 dbt-postgres
-pyspark
 boto3
+requests
