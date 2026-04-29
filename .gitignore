@@ -1,12 +1,37 @@
-# Données locales (trop lourdes pour Git)
-data/
+# --- Docker & Systèmes ---
+.DS_Store
+.env
+db.data/
+postgres_data/
+minio_data/
+
+# --- Airflow ---
 airflow/logs/
 airflow/plugins/
+standalone_admin_password.txt
+airflow.cfg
+airflow.db
+logs/
 
-# Python
+# --- Python (Scripts & Spark) ---
 __pycache__/
 *.py[cod]
+*$py.class
 .venv/
+venv/
+ENV/
+.ipynb_checkpoints/
+*.parquet
+data/
 
-# Environnement
-.env
+# --- DBT ---
+target/
+dbt_modules/
+dbt_packages/
+logs/
+profiles.yml
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp

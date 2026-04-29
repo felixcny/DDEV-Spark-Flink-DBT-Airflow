@@ -15,8 +15,8 @@ def download_and_upload():
     # 2. Connexion à MinIO (via le protocole S3)
     s3 = boto3.resource('s3',
         endpoint_url='http://minio:9000',
-        aws_access_key_id='admin',
-        aws_secret_access_key='password',
+        aws_access_key_id='minioadmin',
+        aws_secret_access_key='minioadmin',
         config=Config(signature_version='s3v4'),
         region_name='us-east-1'
     )
