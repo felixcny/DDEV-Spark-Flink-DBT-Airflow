@@ -1,17 +1,14 @@
-FROM apache/airflow:2.7.0
+FROM apache/airflow:2.7.3-python3.10
 
 USER root
+# Installation de Java (nécessaire pour Spark)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-17-jre-headless \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Installation de Java (pour Spark)
-RUN apt-get update && \
-    apt-get install -y openjdk-11-jre-headless && \
-    apt-get clean
-
-# Retour à l'utilisateur airflow pour installer les libs Python
 USER airflow
-
-# Copie du fichier requirements.txt dans le container
+# Mise à jour de pip et installation des dépendances
 COPY requirements.txt /requirements.txt
-
-# Installation des dépendances à partir du fichier
-RUN pip install --no-cache-dir -r /requirements.txt
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --no-cache-dir --user -r /requirements.txt

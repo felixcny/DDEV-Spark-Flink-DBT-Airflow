@@ -1,69 +1,79 @@
-version: '3.8'
-
 services:
-  # Base de données pour Airflow et le Data Warehouse (DWH)
+  # --- BASE DE DONNEES ---
   postgres:
     image: postgres:13
+    container_name: postgres_db
     environment:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Data Lake (MinIO) compatible avec le protocole S3
-  minio:
-    image: minio/minio
-    ports:
-      - "9000:9000" # API
-      - "9001:9001" # Interface Console
-    environment:
-      - MINIO_ROOT_USER=admin
-      - MINIO_ROOT_PASSWORD=password
-    command: server /data --console-address ":9001"
-
-  # Orchestrateur (Airflow) utilisant notre Dockerfile personnalisé
+  # --- AIRFLOW ---
   airflow-webserver:
     build: .
+    container_name: airflow_webserver
     depends_on:
-      - postgres
-      - minio
+      postgres:
+        condition: service_healthy
     environment:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./scripts:/opt/airflow/scripts
-      - ./dbt_project:/opt/airflow/dbt_project
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
     ports:
       - "8080:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
     command: standalone
 
-  # Spark Master
+  # --- SPARK MASTER ---
   spark-master:
-    image: bitnami/spark:3.4
+    image: apache/spark:3.5.0
+    container_name: spark_master
     environment:
       - SPARK_MODE=master
     ports:
       - "8081:8080"
       - "7077:7077"
-    volumes:
-      - ./scripts:/opt/bitnami/spark/scripts
+    # Force le démarrage du service Master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
 
-  # Spark Worker
+  # --- SPARK WORKER ---
   spark-worker:
-    image: bitnami/spark:3.4
+    image: apache/spark:3.5.0
+    container_name: spark_worker
     depends_on:
       - spark-master
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
-    volumes:
-      - ./scripts:/opt/bitnami/spark/scripts
+    # Force le démarrage du service Worker et le lie au Master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
 
-volumes:
-  postgres_data:
+  # --- MINIO ---
+  minio:
+    image: minio/minio:latest
+    container_name: minio_s3
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=password
+    command: server /data --console-address ":9001"
+
+  # --- INTERFACE WEB POSTGRES (pgAdmin) ---
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_web
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
