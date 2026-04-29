@@ -1,13 +1,26 @@
 version: '3.8'
+
 services:
   postgres:
     image: postgres:13
     environment:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=airflow
+      - POSTGRES_MULTIPLE_DATABASES=airflow,taxi_db 
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000" # API
+      - "9001:9001" # Console UI
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=password
+    command: server /data --console-address ":9001"
 
   airflow-webserver:
     image: apache/airflow:2.7.0
@@ -16,27 +29,34 @@ services:
     environment:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./scripts:/opt/airflow/scripts
-      - ./data:/opt/airflow/data
+      - ./dbt_project:/opt/airflow/dbt_project 
     ports:
       - "8080:8080"
     command: standalone
 
   spark-master:
-    image: apache/spark:latest
+    image: bitnami/spark:3.4 
+    environment:
+      - SPARK_MODE=master
     ports:
       - "8081:8080"
       - "7077:7077"
     volumes:
-      - .:/opt/spark/work-dir
-    entrypoint: [ "/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master" ]
+      - ./scripts:/opt/bitnami/spark/scripts
 
   spark-worker:
-    image: apache/spark:latest
+    image: bitnami/spark:3.4
     depends_on:
       - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
     volumes:
-      - .:/opt/spark/work-dir
-    entrypoint: [ "/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077" ]
+      - ./scripts:/opt/bitnami/spark/scripts
+
+volumes:
+  postgres_data:
