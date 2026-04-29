@@ -4,3 +4,10 @@ psycopg2-binary==2.9.9
 pyspark==3.4.1
 dbt-core==1.7.0
 dbt-postgres==1.7.0
+boto3
+botocore
+requests
+pandas
+pyarrow
+jupyterlab
+matplotlib

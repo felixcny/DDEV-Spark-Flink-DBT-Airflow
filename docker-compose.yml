@@ -45,6 +45,19 @@ services:
       (airflow users create --username admin --firstname admin --lastname admin --role Admin --email admin@example.com --password admin || true) &&
       airflow scheduler & airflow webserver"
 
+  jupyter:
+    build: .
+    container_name: jupyter_spark
+    # On peut rester en root ici pour que le port 8888 s'ouvre sans souci
+    # mais Jupyter sera lancé depuis le dossier de l'utilisateur airflow
+    user: airflow 
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/opt/airflow/notebooks
+      - ./scripts:/opt/airflow/scripts
+      - ./spark_jobs:/opt/airflow/spark_jobs
+    entrypoint: /home/airflow/.local/bin/jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --NotebookApp.token=''
   minio:
     image: minio/minio
     container_name: minio
