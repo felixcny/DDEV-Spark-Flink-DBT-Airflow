@@ -35,3 +35,5 @@ profiles.yml
 .idea/
 .vscode/
 *.swp
+
+logs/
