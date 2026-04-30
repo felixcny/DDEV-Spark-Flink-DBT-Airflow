@@ -3,13 +3,13 @@ import boto3
 from botocore.client import Config
 
 # Configuration
-URL = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2026-01.parquet"
+URL = "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
 BUCKET_NAME = "nyc-taxi"
-OBJECT_NAME = "trajets/yellow_tripdata_2026-01.parquet"
+OBJECT_NAME = "trajets/taxi_zone_lookup.csv"
 
 def download_and_upload():
     # 1. Téléchargement
-    print("Téléchargement des données de trajets...")
+    print("Téléchargement des données de la table mapping...")
     response = requests.get(URL)
     
     # 2. Connexion à MinIO (via le protocole S3)
