@@ -1,6 +1,9 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
+import os
+
+DATA_PATH = os.getenv("WEATHER_PATH", "/opt/airflow/data/raw/weather")
 
 schema = StructType([
     StructField("main", StructType([
@@ -18,11 +21,14 @@ schema = StructType([
 ])
 
 def process_weather():
-    spark = SparkSession.builder.appName("weatherTransform").getOrCreate()
+    spark = SparkSession.builder \
+        .appName("weatherTransform") \
+        .config("spark.jars.packages", "org.postgresql:postgresql:42.7.3") \
+        .getOrCreate()
     raw_stream = spark.readStream.format("json") \
         .schema(schema) \
         .option("multiline", "true") \
-        .load("/opt/spark/work-dir/data/raw/weather")
+        .load(DATA_PATH)
 
     transformed_df = raw_stream.select(
         col("main.temp").alias("temperature"),

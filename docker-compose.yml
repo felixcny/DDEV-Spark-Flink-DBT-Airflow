@@ -34,16 +34,41 @@ services:
       - AIRFLOW__CORE__FERNET_KEY=''
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
     ports:
-      - "8080:8080"
+      - "8082:8080"
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./scripts:/opt/airflow/scripts
       - ./data:/opt/airflow/data
+      - ./spark_jobs:/opt/airflow/spark_jobs
+      - ./dbt_project:/opt/airflow/dbt_project
     command: >
       bash -c "airflow db migrate &&
-      (airflow users create --username admin --firstname admin --lastname admin --role Admin --email admin@example.com --password admin || true) &&
-      airflow scheduler & airflow webserver"
+      airflow users create --username admin --firstname admin --lastname admin --role Admin --email admin@example.com --password admin || true;
+      airflow webserver"
+    networks:
+      - airflow_network
+
+  airflow-scheduler:
+    build: .
+    container_name: airflow_scheduler
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__CORE__FERNET_KEY=''
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./scripts:/opt/airflow/scripts
+      - ./data:/opt/airflow/data
+      - ./spark_jobs:/opt/airflow/spark_jobs
+      - ./dbt_project:/opt/airflow/dbt_project
+    command: airflow scheduler
     networks:
       - airflow_network
 

@@ -1,0 +1,12 @@
+name: 'nyc_taxi_weather_project'
+version: '1.0.0'
+config-version: 2
+
+profile: 'nyc_taxi_weather_project'
+
+model-paths: ["models"]
+
+models:
+  nyc_taxi_weather_project:
+    marts:
+      +materialized: table
