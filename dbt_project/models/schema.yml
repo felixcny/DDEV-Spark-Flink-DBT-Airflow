@@ -1,0 +1,33 @@
+version: 2
+
+sources:
+  - name: public
+    schema: public
+    tables:
+      - name: fact_taxi_trips
+      - name: weather
+
+models:
+  - name: trip_enriched
+    columns:
+      - name: tpep_pickup_datetime
+        tests:
+          - not_null
+      - name: total_amount
+        tests:
+          - not_null
+      - name: trip_distance
+        tests:
+          - not_null
+
+  - name: trip_summary_per_hour
+    columns:
+      - name: pickup_hour
+        tests:
+          - not_null
+
+  - name: high_value_customers
+    columns:
+      - name: passenger_count
+        tests:
+          - not_null

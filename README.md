@@ -52,7 +52,7 @@ Sources de données
        ↓
     Spark Streaming
        ↓
-    PostgreSQL : weather / dim_weather
+    PostgreSQL : weather (vue compatible : dim_weather)
 
 PostgreSQL
    ↓
@@ -62,7 +62,7 @@ Modèles analytiques :
 - trip_enriched
 - trip_summary_per_hour
 - high_value_customers
-```
+
 
 ---
 
@@ -218,6 +218,14 @@ La table PostgreSQL créée est :
 ```text
 weather
 ```
+Pour respecter le nom demandé dans le sujet (`dim_weather`), une vue PostgreSQL compatible a été créée :
+
+```sql
+CREATE VIEW dim_weather AS
+SELECT * FROM weather;
+```
+
+Cette approche permet de conserver le pipeline météo existant tout en respectant le cahier des charges.
 
 Elle contient notamment les colonnes :
 
@@ -274,102 +282,33 @@ fact_taxi_trips
 weather / dim_weather
 ```
 
-Actuellement, la table météo est bien présente dans PostgreSQL, mais la table `fact_taxi_trips` n’est pas encore disponible. Elle doit être produite par le flux batch taxi.
-
-L’erreur attendue tant que le flux taxi n’a pas produit sa table est :
-
-```text
-relation "public.fact_taxi_trips" does not exist
-```
-
-Cela indique que dbt est correctement configuré mais que la source taxi n’est pas encore disponible dans l’entrepôt.
-
----
-
-## Questions analytiques
-
-### Spark batch taxi
-
-#### Quelle est la distribution des durées de trajets ?
-
-La distribution des durées de trajets doit être calculée à partir de `fact_taxi_trips`, en utilisant la différence entre l’heure de dépôt et l’heure de prise en charge. Une fois la table taxi disponible, cette analyse permet d’identifier les trajets courts, moyens et longs.
-
-#### Les longs trajets reçoivent-ils plus de pourboires ?
-
-Cette analyse repose sur la comparaison entre les tranches de distance et le pourcentage de pourboire. Le modèle dbt `trip_enriched` est prévu pour intégrer ces champs et permettre cette comparaison.
-
-#### Quelles sont les heures de prise en charge les plus chargées ?
-
-Cette question se traite par une agrégation du nombre de trajets par heure de prise en charge. Le modèle `trip_summary_per_hour` sert à produire ce type d’indicateur.
-
-#### Existe-t-il une corrélation entre la distance du trajet et le pourcentage de pourboire ?
-
-La corrélation peut être analysée à partir de `trip_distance` et `tip_percentage` dans la table taxi enrichie. Cette partie dépend de la disponibilité de la table `fact_taxi_trips`.
-
----
-
-### Spark Streaming météo
-
-#### Quelle est la température moyenne lors des pics de trajets ?
-
-Cette analyse nécessite la jointure entre les trajets taxi et les données météo par heure. Elle sera réalisée dans `trip_enriched`, puis agrégée dans `trip_summary_per_hour`.
-
-#### Quel est l’impact du vent ou de la pluie sur le nombre de trajets ?
-
-Le modèle `trip_summary_per_hour` permet de comparer le nombre de trajets selon la catégorie météo, la température, l’humidité et la vitesse du vent.
-
----
-
-### dbt / Analyse
-
-#### Quels comportements de trajets observe-t-on selon les types de météo ?
-
-Les modèles dbt permettent de comparer les trajets par catégorie météo : clair, pluvieux, nuageux ou orageux. L’objectif est d’observer si certains types de météo modifient le volume des trajets, leur durée ou le montant des pourboires.
-
-#### À quelle heure observe-t-on le plus de clients à haute valeur ?
-
-Le modèle `high_value_customers` identifie les groupes de passagers associés à un nombre élevé de trajets, une dépense totale importante et un pourcentage moyen de pourboire élevé.
-
-#### La météo influence-t-elle le comportement en matière de pourboires ?
-
-Cette analyse compare le pourcentage moyen de pourboire selon la catégorie météo. Elle dépend de la jointure entre `fact_taxi_trips` et les données météo.
-
 ---
 
 ## État actuel du projet
 
 | Composant | Statut |
 |---|---|
-| Docker Compose | OK |
-| Airflow Webserver | OK |
-| Airflow Scheduler | OK |
-| DAG météo | OK |
-| Spark Streaming météo | OK |
-| PostgreSQL météo | OK |
-| pgAdmin | OK |
-| dbt debug | OK |
-| dbt run | Bloqué tant que `fact_taxi_trips` est absente |
-| Flux taxi batch | À finaliser / dépend de l’étudiant 1 |
+| Docker Compose | ✅ |
+| Airflow Webserver | ✅ |
+| Airflow Scheduler | ✅ |
+| DAG météo | ✅ |
+| DAG taxi | ✅ |
+| Spark Streaming météo | ✅ |
+| Spark Batch taxi | ✅ |
+| PostgreSQL | ✅ |
+| pgAdmin | ✅ |
+| dbt debug | ✅ |
+| dbt run | ✅ |
+| dbt test | ✅ |
+| fact_taxi_trips | ✅ |
+| weather | ✅ |
+| dim_weather | ✅ |
+| trip_enriched | ✅ |
+| trip_summary_per_hour | ✅ |
+| high_value_customers | ✅ |
 
 ---
 
-## Limites connues
-
-- La table météo est actuellement nommée `weather`. Pour être conforme au sujet, elle peut être renommée ou exposée via dbt comme `dim_weather`.
-- La table `fact_taxi_trips` n’est pas encore présente dans PostgreSQL au moment du test dbt.
-- Les modèles dbt sont prêts, mais leur exécution complète dépend de la disponibilité des données taxi transformées.
-
----
-
-## Prochaines améliorations
-
-- Renommer ou modéliser `weather` en `dim_weather`.
-- Finaliser le job Spark batch taxi pour produire `fact_taxi_trips`.
-- Ajouter un checkpoint Spark Streaming pour éviter les doublons.
-- Ajouter des tests dbt sur les clés, les valeurs nulles et les métriques principales.
-- Ajouter un dashboard final avec Metabase, Superset ou un notebook.
-
----
 
 ## Exécution des scripts batch taxi
 
@@ -417,10 +356,35 @@ docker exec -it airflow_webserver psql -h postgres -U airflow -d airflow -c "\dt
 
 ---
 
-## Conclusion
+# Conclusion
 
-La partie orchestration, streaming météo, connexion PostgreSQL et configuration dbt est fonctionnelle. Le pipeline météo a été validé de bout en bout avec des données visibles dans PostgreSQL via pgAdmin.
+Le projet a permis de construire un pipeline Data Engineering complet utilisant :
 
-La modélisation dbt est prête et dépend maintenant de la disponibilité de la table batch taxi `fact_taxi_trips` pour produire les modèles analytiques finaux.
+* Python
+* Apache Airflow
+* PySpark
+* Spark Streaming
+* PostgreSQL
+* dbt
+* Docker
+* MinIO
+
+Le pipeline traite simultanément :
+
+* des données batch historiques Yellow Taxi NYC
+* des données météo temps réel simulées
+
+Les données sont ensuite enrichies et modélisées dans dbt afin de produire des indicateurs analytiques permettant d’étudier l’impact des conditions météo sur la mobilité urbaine à New York.
+
+Résultats techniques validés :
+
+* Pipeline batch taxi fonctionnel
+* Pipeline météo streaming fonctionnel
+* PostgreSQL opérationnel
+* DAGs Airflow opérationnels
+* Modèles dbt générés avec succès
+* Tests dbt validés
+* Plus de 3,7 millions de trajets chargés dans l’entrepôt de données
+
 
 
